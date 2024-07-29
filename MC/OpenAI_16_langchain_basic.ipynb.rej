@@ -1,0 +1,10 @@
+diff a/MC/OpenAI_16_langchain_basic.ipynb b/MC/OpenAI_16_langchain_basic.ipynb	(rejected hunks)
+@@ -193,7 +193,7 @@
+         "import openai\n",
+         "\n",
+         "from google.colab import userdata\n",
+-        "os.environ[\"OPENAI_API_KEY\"] = userdata.get(\"open_ai_key_team2\")\n",
++        "os.environ[\"OPENAI_API_KEY\"] = userdata.get(\"")\n",
+         "\n",
+         "openai.api_key = os.getenv(\"OPENAI_API_KEY\")"
+       ],
