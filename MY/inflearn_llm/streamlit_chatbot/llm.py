@@ -4,13 +4,15 @@ from langchain_openai import ChatOpenAI
 # from langchain import hub 
 # from langchain.chains import RetrievalQA/
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder, FewShotChatMessagePromptTemplate
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
+
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 
+from config import answer_examples
 store = {}
 
 # 대화 히스토리를 가져오는 함수
@@ -49,8 +51,8 @@ def get_dictionary_chain():
     
     return dictionary_chain
 
-# 질문에 답변을 생성하는 체인 함수
-def get_rag_chain():
+
+def  get_history_retriever():
     llm = get_llm()
     retriever = get_retriever()
     # prompt = hub.pull('rlm/rag-prompt')
@@ -72,26 +74,44 @@ def get_rag_chain():
         ]
     )
     history_aware_retriever = create_history_aware_retriever(
-    llm, retriever, contextualize_q_prompt
-)
+    llm, retriever, contextualize_q_prompt)
+    
+    return history_aware_retriever
+
+
+# 질문에 답변을 생성하는 체인 함수
+def get_rag_chain():
+    llm = get_llm()
+    example_prompt = ChatPromptTemplate.from_messages(
+        [
+            ("human", "{input}"),
+            ("ai", "{answer}"),
+        ]
+    )
+    few_shot_prompt = FewShotChatMessagePromptTemplate(
+        example_prompt=example_prompt,
+        examples=answer_examples,
+    )
+
     system_prompt = (
-        "You are an assistant for question-answering tasks. "
-        "Use the following pieces of retrieved context to answer "
-        "the question. If you don't know the answer, say that you "
-        "don't know. Use three sentences maximum and keep the "
-        "answer concise."
+        "당신은 소득세법 전문가입니다. 사용자의 소득세법에 관한 질문에 답변해주세요"
+        "아래에 제공된 문서를 활용해서 답변해주시고"
+        "답변을 알 수 없다면 모른다고 답변해주세요"
+        "답변을 제공할 때는 소득세법 (XX조)에 따르면 이라고 시작하면서 답변해주시고"
+        "2-3 문장정도의 짧은 내용의 답변을 원합니다."
         "\n\n"
         "{context}"
     )
     qa_prompt = ChatPromptTemplate.from_messages(
     [
-        ("system", system_prompt),
+        ("system", system_prompt), #llm 역할
+        few_shot_prompt,
         MessagesPlaceholder("chat_history"),
         ("human", "{input}"),
     ]
     )
     question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
-
+    history_aware_retriever = get_history_retriever()
     rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
     
     conversational_rag_chain = RunnableWithMessageHistory(
